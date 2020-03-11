@@ -79,3 +79,4 @@ graph_count_data['Количество'] = [np.random.rand() for x in range(grap
 graph_count_data['Дефолт'] = [int(np.random.rand() * 100) % 2 for x in range(graph_count_data.shape[0])]
 graph_count_data['Тип дефолта'] = graph_count_data[['Тип дефолта', 'Дефолт']].apply(lambda x: None if (x[1] == 0) else x[0], axis=1)
 graph_count_data['Рейтинг'] = [int(np.random.normal()) for x in range(graph_count_data.shape[0])]
+
