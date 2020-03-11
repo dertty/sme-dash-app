@@ -127,13 +127,13 @@ sidebar = dbc.Col(
     [
         html.Div(
             [
-                html.H5("Фильтрация портфеля"),
-                dbc.Label(signed_dt_filtration['label'], html_for=signed_dt_filtration['html_for']),
-                dcc.DatePickerRange(id='date-picker-range', start_date=signed_dt_filtration['start_date'], end_date=signed_dt_filtration['end_date'], clearable=True, first_day_of_week=1, display_format='DD-MM-YYYY'),
-                dbc.Label(defaults_types_dropdown['label'], html_for=defaults_types_dropdown['html_for']),
-                dcc.Dropdown(options=defaults_types_dropdown['options'], value=defaults_types_dropdown['values'], id='default-types', multi=True),
-                dbc.Label(loans_types_dropdown['label'], html_for=loans_types_dropdown['html_for']),
-                dcc.Dropdown(options=loans_types_dropdown['options'], value=loans_types_dropdown['values'], id='loan-types', multi=True),
+                dbc.Row(html.H5("Фильтрация портфеля")),
+                dbc.Row(dbc.Label(signed_dt_filtration['label'], html_for=signed_dt_filtration['html_for'])),
+                dbc.Row(dcc.DatePickerRange(id='date-picker-range', start_date=signed_dt_filtration['start_date'], end_date=signed_dt_filtration['end_date'], clearable=True, first_day_of_week=1, display_format='DD-MM-YYYY')),
+                dbc.Row(dbc.Label(defaults_types_dropdown['label'], html_for=defaults_types_dropdown['html_for'])),
+                dbc.Row(dcc.Dropdown(options=defaults_types_dropdown['options'], value=defaults_types_dropdown['values'], id='default-types', multi=True)),
+                dbc.Row(dbc.Label(loans_types_dropdown['label'], html_for=loans_types_dropdown['html_for'])),
+                dbc.Row(dcc.Dropdown(options=loans_types_dropdown['options'], value=loans_types_dropdown['values'], id='loan-types', multi=True)),
             ], className='sticky-top',
         ),
         html.Hr(),
@@ -287,7 +287,6 @@ def tab_content(active_tab):
     Output("tabs", "children"),
     [Input("tabs", "active_tab")])
 def tab_content(active_tab):
-
 
     if active_tab == 'tab-1':
         return [
