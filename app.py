@@ -32,6 +32,7 @@ navbar = dbc.NavbarSimple(
 )
 
 
+#region DR and count blocks
 ########################################
 # DR and count blocks
 #######################################
@@ -50,8 +51,10 @@ cards = dbc.CardDeck(
         stat_card(0, 'Количество дефолтов', id='def-count-block'),
     ], id='stat-blocks',
 )
+#endregion
 
 
+#region Plotting popularity graph
 ########################################
 # Plotting popularity graph
 #######################################
@@ -77,7 +80,9 @@ graph_count = dbc.Row([
         dcc.Graph(figure={"data": [{"x": graph_count_data['Дата'], "y": graph_count_data['Количество'], }, ], }, id='count-graph', ),
     ], className='m-1', ), ])
 
+#endregion
 
+#region Plotting rating graph
 ########################################
 # Plotting rating graph
 #######################################
