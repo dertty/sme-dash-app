@@ -10,10 +10,12 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import dash_daq as daq
-from data_preparation import loan_types, default_types, signed_dt_filtration, defaults_types_dropdown, loans_types_dropdown, navbar_labels
+from data_preparation import loan_types, default_types, signed_dt_filtration, defaults_types_dropdown, \
+    loans_types_dropdown, navbar_labels
 from data_preparation import graph_count_data
 from datetime import datetime as dt
 import plotly.graph_objs as go
+from data_provider import DataProvider
 
 # get relative data folder
 PATH = pathlib.Path(__file__).parent
@@ -27,20 +29,28 @@ app.config.suppress_callback_exceptions = True
 # Navigation Bar
 #######################################
 navbar = dbc.NavbarSimple(
-    brand="Портфель ММБ", brand_href="#",
+    children=[
+        dbc.NavItem(dbc.NavLink("Портфель", href="#")),
+        dbc.DropdownMenu(
+            children=[
+                dbc.DropdownMenuItem("Выдачи", header=True)
+            ],
+            nav=True,
+            in_navbar=True,
+            label="More",
+        ),
+    ],
+    brand="Мониторинг кредитов ММБ", brand_href="#",
     color="dark", dark=True, fluid=True,
 )
 
 
-#region DR and count blocks
-########################################
-# DR and count blocks
-#######################################
+# region DR and count blocks
 
 def stat_card(value, desc, id):
     return dbc.Card(dbc.CardBody([
-        html.Div(html.H5(value, className="text-dark",), id=id),
-        html.P(desc, className="text-muted",)
+        html.Div(html.H5(value, className="text-dark", ), id=id),
+        html.P(desc, className="text-muted", )
     ]), className='border border-light')
 
 
@@ -51,18 +61,14 @@ cards = dbc.CardDeck(
         stat_card(0, 'Количество дефолтов', id='def-count-block'),
     ], id='stat-blocks',
 )
-#endregion
+# endregion
 
-
-#region Plotting popularity graph
-########################################
-# Plotting popularity graph
-#######################################
+# region Plotting popularity graph
 
 count_plot_switches = dbc.FormGroup([
     dbc.Checklist(
         options=[
-            {"label": "Дефолты",   "value": 'default'},
+            {"label": "Дефолты", "value": 'default'},
             {"label": "Не дефолты", "value": 'healthy'},
             {"label": "Разбить на продукты", "value": 'decompose'},
         ],
@@ -71,26 +77,24 @@ count_plot_switches = dbc.FormGroup([
         inline=True, switch=True,
     )])
 
-
 graph_count = dbc.Row([
     dbc.Col([
         dbc.Row([
             dbc.Col(html.H3("Количество клиентов/договоров"), ),
             dbc.Col(count_plot_switches, width='auto'), ], ),
-        dcc.Graph(figure={"data": [{"x": graph_count_data['Дата'], "y": graph_count_data['Количество'], }, ], }, id='count-graph', ),
+        dcc.Graph(figure={"data": [{"x": graph_count_data['Дата'], "y": graph_count_data['Количество'], }, ], },
+                  id='count-graph', ),
     ], className='m-1', ), ])
 
-#endregion
+# endregion
 
-#region Plotting rating graph
-########################################
-# Plotting rating graph
-#######################################
+# region Plotting rating graph
 
+#Тубмлеры графика численности
 rating_plot_switches = dbc.FormGroup([
     dbc.Checklist(
         options=[
-            {"label": "Дефолты",   "value": 'default'},
+            {"label": "Дефолты", "value": 'default'},
             {"label": "Не дефолты", "value": 'healthy'},
             {"label": "Разбить на продукты", "value": 'decompose'},
         ],
@@ -111,8 +115,7 @@ graph_rating = dbc.Row([
                 data=[go.Bar(x=rating_graph_data.index.tolist(), y=rating_graph_data.tolist(), name='SF Zoo'), ],
                 layout=go.Layout(barmode='stack')), id='rating-graph', ),
     ], className='m-1', ), ])
-
-
+# endregion
 
 dark_theme_switch = daq.ToggleSwitch(
     id='light-dark-theme-toggle',
@@ -121,24 +124,22 @@ dark_theme_switch = daq.ToggleSwitch(
     value=False,
 )
 
-
-
-
-
-
-
-
 sidebar = dbc.Col(
     [
         html.Div(
             [
                 dbc.Row(html.H5("Фильтрация портфеля")),
                 dbc.Row(dbc.Label(signed_dt_filtration['label'], html_for=signed_dt_filtration['html_for'])),
-                dbc.Row(dcc.DatePickerRange(id='date-picker-range', start_date=signed_dt_filtration['start_date'], end_date=signed_dt_filtration['end_date'], clearable=True, first_day_of_week=1, display_format='DD-MM-YYYY')),
+                dbc.Row(dcc.DatePickerRange(id='date-picker-range', start_date=signed_dt_filtration['start_date'],
+                                            end_date=signed_dt_filtration['end_date'], clearable=True,
+                                            first_day_of_week=1, display_format='DD-MM-YYYY')),
                 dbc.Row(dbc.Label(defaults_types_dropdown['label'], html_for=defaults_types_dropdown['html_for'])),
-                dbc.Row(dcc.Dropdown(options=defaults_types_dropdown['options'], value=defaults_types_dropdown['values'], id='default-types', multi=True)),
+                dbc.Row(
+                    dcc.Dropdown(options=defaults_types_dropdown['options'], value=defaults_types_dropdown['values'],
+                                 id='default-types', multi=True)),
                 dbc.Row(dbc.Label(loans_types_dropdown['label'], html_for=loans_types_dropdown['html_for'])),
-                dbc.Row(dcc.Dropdown(options=loans_types_dropdown['options'], value=loans_types_dropdown['values'], id='loan-types', multi=True)),
+                dbc.Row(dcc.Dropdown(options=loans_types_dropdown['options'], value=loans_types_dropdown['values'],
+                                     id='loan-types', multi=True)),
             ], className='sticky-top',
         ),
         html.Hr(),
@@ -165,8 +166,9 @@ app.layout = dbc.Container(
                                             [
                                                 dbc.Tabs(
                                                     [
-                                                        dbc.Tab(label="Количество", tab_id="tab-1", labelClassName="text-success"),
-                                                        dbc.Tab(label="Рейтинги", tab_id="tab-2",),
+                                                        dbc.Tab(label="Количество", tab_id="tab-1",
+                                                                labelClassName="text-success"),
+                                                        dbc.Tab(label="Рейтинги", tab_id="tab-2", ),
                                                     ], id="tabs", active_tab="tab-1",
                                                 ),
                                             ]
@@ -206,7 +208,8 @@ def get_filtred_tbl(tbl, start_date, end_date, checked_default_types, checked_lo
     ])
 def update_dr_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
     plot_data = get_filtred_tbl(graph_count_data, start_date, end_date, checked_default_types, checked_loan_types)
-    return html.H5('{}%'.format(round(plot_data['Дефолт'].sum() / plot_data.shape[0] * 100, 2)), className="text-dark",)
+    return html.H5('{}%'.format(round(plot_data['Дефолт'].sum() / plot_data.shape[0] * 100, 2)),
+                   className="text-dark", )
 
 
 @app.callback(
@@ -219,7 +222,7 @@ def update_dr_stat_block(start_date, end_date, checked_default_types, checked_lo
     ])
 def update_count_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
     plot_data = get_filtred_tbl(graph_count_data, start_date, end_date, checked_default_types, checked_loan_types)
-    return html.H5(str(plot_data.shape[0]), className="text-dark",)
+    return html.H5(str(plot_data.shape[0]), className="text-dark", )
 
 
 @app.callback(
@@ -232,7 +235,8 @@ def update_count_stat_block(start_date, end_date, checked_default_types, checked
     ])
 def update_dc_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
     plot_data = get_filtred_tbl(graph_count_data, start_date, end_date, checked_default_types, checked_loan_types)
-    return html.H5(str(plot_data['Дефолт'].sum()), className="text-dark",)
+    return html.H5(str(plot_data['Дефолт'].sum()), className="text-dark", )
+
 
 @app.callback(
     Output('count-graph', 'figure'),
@@ -292,7 +296,6 @@ def tab_content(active_tab):
     Output("tabs", "children"),
     [Input("tabs", "active_tab")])
 def tab_content(active_tab):
-
     if active_tab == 'tab-1':
         return [
             dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab', labelClassName="text-success"),
@@ -300,7 +303,7 @@ def tab_content(active_tab):
         ]
     elif active_tab == 'tab-2':
         return [
-            dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab',),
+            dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab', ),
             dbc.Tab(label="Рейтинги", tab_id="tab-2", id='rating-tab', labelClassName="text-success"),
         ]
     else:
@@ -309,5 +312,7 @@ def tab_content(active_tab):
             dbc.Tab(label="Рейтинги", tab_id="tab-2", id='rating-tab'),
         ]
 
+
 if __name__ == "__main__":
+    provider = DataProvider()
     app.run_server(debug=False)
