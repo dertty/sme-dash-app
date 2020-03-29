@@ -60,24 +60,11 @@ def build_cards():
 
 # region Plotting popularity graph
 def plot_counts():
-    count_plot_switches = dbc.FormGroup([
-        dbc.Checklist(
-            options=[
-                {"label": "Дефолты", "value": 'default'},
-                {"label": "Не дефолты", "value": 'healthy'},
-                {"label": "Разбить на продукты", "value": 'decompose'},
-            ],
-            value=['default', 'healthy'],
-            id="switches-inline-input-count-plot",
-            inline=True, switch=True,
-        )])
-    data = provider.GetCountsData()
 
+    data = provider.GetCountsData()
     graph_count = dbc.Row([
         dbc.Col([
-            dbc.Row([
-                dbc.Col(html.H3("Количество клиентов/договоров"), ),
-                dbc.Col(count_plot_switches, width='auto'), ], ),
+            dbc.Row(dbc.Col(html.H3("Количество клиентов/договоров"))),
             dcc.Graph(figure={"data": [{"x": data.index, "y": data.values, }, ], },
                       id='count-graph', ),
         ], className='m-1', ), ])
@@ -86,27 +73,11 @@ def plot_counts():
 
 # region Plotting rating graph
 def plot_ratings():
-    #Тубмлеры графика численности
-    rating_plot_switches = dbc.FormGroup([
-        dbc.Checklist(
-            options=[
-                {"label": "Дефолты", "value": 'default'},
-                {"label": "Не дефолты", "value": 'healthy'},
-                {"label": "Разбить на продукты", "value": 'decompose'},
-            ],
-            value=['default', 'healthy'],
-            id="switches-inline-input-count-plot",
-            inline=True, switch=True,
-        )])
-
     rating_graph_data = provider.GetRatingData()
-
 
     graph_rating = dbc.Row([
         dbc.Col([
-            dbc.Row([
-                dbc.Col(html.H3("Рейтинги клиентов/договоров"), ),
-                dbc.Col(rating_plot_switches, width='auto'), ], ),
+            dbc.Row(dbc.Col(html.H3("Рейтинги клиентов/договоров"))),
             dcc.Graph(
                 figure=go.Figure(
                     data=[go.Bar(x=rating_graph_data.index.tolist(), y=rating_graph_data.tolist(), name='SF Zoo'), ],
@@ -146,14 +117,17 @@ def build_sidebar():
         'html_for': "Выберите типы дефолтов для фильтрации выборки"
     }
 
-
-
-    dark_theme_switch = daq.ToggleSwitch(
-        id='light-dark-theme-toggle',
-        label=['Light', 'Dark'],
-        style={'width': '100px', 'margin': 'auto'},
-        value=False,
-    )
+    count_plot_switches = dbc.FormGroup([
+        dbc.Checklist(
+            options=[
+                {"label": "Находящиеся в дефолте", "value": 'default'},
+                {"label": "Ненаходящиеся в дефолте", "value": 'healthy'},
+                {"label": "Разбить на продукты", "value": 'decompose'},
+            ],
+            value=['default', 'healthy'],
+            id="switches-inline-input-count-plot",
+            inline=True, switch=True,
+        )])
 
     sidebar = dbc.Col(
         [
@@ -172,10 +146,11 @@ def build_sidebar():
                     dbc.Row(dbc.Label(loans_types_dropdown['label'], html_for=loans_types_dropdown['html_for'])),
                     dbc.Row(dcc.Dropdown(options=loans_types_dropdown['options'], value=loans_types_dropdown['values'],
                                          id='loan-types', multi=True)),
+                    dbc.Row(dbc.Label('Что показывать:', html_for='')),
+                    count_plot_switches
                 ], className='sticky-top',
             ),
             html.Hr(),
-            dark_theme_switch,
         ], width=3,
     )
     return sidebar
@@ -230,7 +205,7 @@ def build_layout(app):
         Input('loan-types', 'value')
     ])
 def update_dr_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    dr = provider.GetDR(start_date, end_date, checked_default_types, checked_loan_types)
+    dr = provider.GetDR(start_date = start_date, end_date = end_date, checked_default_types=checked_default_types, checked_loan_types=checked_loan_types)
     return html.H5('{}%'.format(round(dr * 100, 2)), className="text-dark", )
 
 
@@ -243,7 +218,7 @@ def update_dr_stat_block(start_date, end_date, checked_default_types, checked_lo
         Input('loan-types', 'value')
     ])
 def update_count_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    count_stat = provider.GetCount(start_date, end_date, checked_default_types, checked_loan_types)
+    count_stat = provider.GetCount(start_date = start_date, end_date=end_date, checked_default_types=checked_default_types, checked_loan_types=checked_loan_types)
     return html.H5(str(count_stat), className="text-dark", )
 
 
@@ -256,7 +231,8 @@ def update_count_stat_block(start_date, end_date, checked_default_types, checked
         Input('loan-types', 'value')
     ])
 def update_dc_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    defaults_count = provider.GetDefaultsCount(start_date, end_date, checked_default_types, checked_loan_types)
+    defaults_count = provider.GetDefaultsCount(start_date=start_date, end_date=end_date, checked_default_types=checked_default_types,
+                                               checked_loan_types=checked_loan_types)
     return html.H5(str(defaults_count), className="text-dark", )
 
 
@@ -270,20 +246,22 @@ def update_dc_stat_block(start_date, end_date, checked_default_types, checked_lo
         Input('loan-types', 'value')
     ])
 def update_count_graph(start_date, end_date, checkbox_flag, checked_default_types, checked_loan_types):
-    flag_def = []
+    default_state = []
     if 'default' in checkbox_flag:
-        flag_def.append(1)
+        default_state.append(1)
     if 'healthy' in checkbox_flag:
-        flag_def.append(0)
+        default_state.append(0)
 
-    plot_data = provider.GetCountsData(start_date, end_date, checked_default_types, checked_loan_types, 'decompose' in checkbox_flag)
+    plot_data = provider.GetCountsData(default_state = default_state, start_date = start_date, end_date = end_date,
+                                       checked_default_types = checked_default_types, checked_loan_types = checked_loan_types,
+                                       product_decompose='decompose' in checkbox_flag)
     res = []
     if 'decompose' in checkbox_flag:
-        for t in plot_data['Тип продукта'].unique():
+        for t in plot_data['credit_type'].unique():
             res.append({
-                'x': plot_data.loc[plot_data['Тип продукта'] == t, 'Дата'],
-                'y': plot_data.loc[plot_data['Тип продукта'] == t, 'Количество'],
-                'name': list(loan_types.keys())[list(loan_types.values()).index(t)]
+                'x': plot_data.loc[plot_data['credit_type'] == t, 'report_dt'],
+                'y': plot_data.loc[plot_data['credit_type'] == t, 'total'],
+                'name': t
             })
         return {"data": res}
     else:
@@ -305,19 +283,10 @@ def update_rating_graph(start_date, end_date, checkbox_flag, checked_default_typ
     if 'healthy' in checkbox_flag:
         flag_def.append(0)
 
-    rating_data = provider.GetRatingData(start_date, end_date, checked_default_types, checked_loan_types, 'decompose' in checkbox_flag)
-    res = []
+    rating_data = provider.GetRatingData(start_date = start_date, end_date = end_date, checked_default_types=checked_default_types,
+                                         checked_loan_types = checked_loan_types)
 
-    if 'decompose' in checkbox_flag:
-        for t in plot_data['Тип продукта'].unique():
-            res.append({
-                'x': plot_data.loc[plot_data['Тип продукта'] == t, 'Дата'],
-                'y': plot_data.loc[plot_data['Тип продукта'] == t, 'Количество'],
-                'name': list(loan_types.keys())[list(loan_types.values()).index(t)]
-            })
-        return {"data": res}
-    else:
-        return {"data": [go.Bar(x=rating_data.index, y=rating_data.values, name='Распределение рейтингов')]}
+    return {"data": [go.Bar(x=rating_data.index, y=rating_data.values, name='Распределение рейтингов')]}
 
 @app.callback(
     Output('main-theme', 'style'),

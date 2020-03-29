@@ -9,8 +9,10 @@ class DataProvider:
         self.product_types_ = self.portfolio_data_['credit_type'].unique()
         self.default_reasons_ = self.portfolio_data_['default_reason'].dropna().unique()
 
-    def _getFilteredData(self, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
+    def _getFilteredData(self, default_state = None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
         data = self.portfolio_data_
+        if default_state:
+            data = data[data['cur_default'].isin(default_state)]
         if checked_loan_types:
             data = data[data['credit_type'].isin(checked_loan_types)]
         if checked_default_types:
@@ -48,47 +50,46 @@ class DataProvider:
         #TODO: Извлекать дату в конструкте и тут возвращать
         return dt(2018, 1, 1), dt(2020, 10, 1)
 
-    def GetDefaultsCount(self, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
+    def GetDefaultsCount(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
         """
         Возвращает число дефолтов, подходящих по критериям
         :return: число дефолтов, подходящих по критериям
         """
-        data = self._getFilteredData(start_date, end_date, checked_default_types, checked_loan_types)
+        data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
         default_count = data['cur_default'].sum()
         return default_count
 
-    def GetDR(self, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
+    def GetDR(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
         """
         Возвращает DR подходящих по критериям наблюдений
         :return: DR подходящих по критериям наблюдений
         """
-        data = self._getFilteredData(start_date, end_date, checked_default_types, checked_loan_types)
+        data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
         dr = data['default_12m'].sum() / data.shape[0]
         return dr
 
-    def GetCount(self, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
+    def GetCount(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
         """
         Возвращает число подходящих по критериям наблюдений
         :return: Число подходящих по критериям наблюдений
         """
-        data = self._getFilteredData(start_date, end_date, checked_default_types, checked_loan_types)
+        data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
         return data.shape[0]
 
-
-
-    def GetCountsData(self, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,
+    def GetCountsData(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,
                       product_decompose=False):
-        data = self._getFilteredData(start_date, end_date, checked_default_types, checked_loan_types)
+        data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
 
         if product_decompose:
-            result = data.groupby(by=['report_dt', 'cred_type'])['id'].count()
+            result = data.groupby(by=['report_dt', 'credit_type']).size().reset_index()
+            result.columns = ['report_dt', 'credit_type', 'total']
         else:
-            result = data.groupby(by='report_dt')['id'].count()
+            result = data.groupby(by='report_dt').size()
         return result
 
-    def GetRatingData(self, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,
+    def GetRatingData(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,
                       product_decompose=False):
-        data = self._getFilteredData(start_date, end_date, checked_default_types, checked_loan_types)
+        data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
 
         result = data.groupby(by='rating').size()
         return result
