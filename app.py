@@ -1,19 +1,11 @@
 # Import required libraries
-import pickle
-import copy
 import pathlib
 import dash
-import math
-import pandas as pd
 from dash.dependencies import Input, Output, State, ClientsideFunction
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import dash_daq as daq
-from data_preparation import loan_types, default_types, signed_dt_filtration, defaults_types_dropdown, \
-    loans_types_dropdown, navbar_labels
-from data_preparation import graph_count_data
-from datetime import datetime as dt
 import plotly.graph_objs as go
 from data_provider import DataProvider
 
@@ -107,7 +99,7 @@ def plot_ratings():
             inline=True, switch=True,
         )])
 
-    rating_graph_data = graph_count_data.groupby(['Рейтинг']).size()
+    rating_graph_data = provider.GetRatingData()
 
 
     graph_rating = dbc.Row([
@@ -130,12 +122,28 @@ def build_sidebar():
     :return: Боковая панель
     """
 
-    start_dt, end_dt = provider.GetDatesFilterBounds()
+    start_dt, end_dt = provider.GetDatesBounds
     dates_picker = {
         'start_date': start_dt,
         'end_date': end_dt,
         'label': 'Интервал дат подписания договора:',
         'html_for': "Минимальная и максимальная дата подписания договора для фильтрации выборки"
+    }
+
+    product_types = provider.GetProductTypes;
+    loans_types_dropdown = {
+        'options': [{'label':t, 'value':t} for t in product_types],
+        'values': [*product_types],
+        'label': 'Типы ссуд:',
+        'html_for': "Выберите типы ссуд для фильтрации выборки"
+    }
+
+    default_reasons = provider.GetDefaultReasons
+    defaults_types_dropdown = {
+        'options': [{'label':r, 'value': r} for r in default_reasons],
+        'values': [*default_reasons],
+        'label': 'Виды дефолтов:',
+        'html_for': "Выберите типы дефолтов для фильтрации выборки"
     }
 
 
@@ -211,18 +219,8 @@ def build_layout(app):
         ], fluid=True,
     )
 
-def get_filtred_tbl(tbl, start_date, end_date, checked_default_types, checked_loan_types):
-    if checked_loan_types:
-        tbl = tbl[tbl['Тип продукта'].isin(checked_loan_types)]
-    if checked_default_types:
-        tbl = tbl[tbl['Тип дефолта'].isin(checked_default_types + [None, ])]
-    if start_date:
-        tbl = tbl[tbl['Дата'] >= start_date]
-    if end_date:
-        tbl = tbl[tbl['Дата'] < end_date]
-    return tbl
 
-
+#region Callbacks
 @app.callback(
     Output('dr-block', 'children'),
     [
@@ -232,9 +230,8 @@ def get_filtred_tbl(tbl, start_date, end_date, checked_default_types, checked_lo
         Input('loan-types', 'value')
     ])
 def update_dr_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    plot_data = get_filtred_tbl(graph_count_data, start_date, end_date, checked_default_types, checked_loan_types)
-    return html.H5('{}%'.format(round(plot_data['Дефолт'].sum() / plot_data.shape[0] * 100, 2)),
-                   className="text-dark", )
+    dr = provider.GetDR(start_date, end_date, checked_default_types, checked_loan_types)
+    return html.H5('{}%'.format(round(dr * 100, 2)), className="text-dark", )
 
 
 @app.callback(
@@ -246,8 +243,8 @@ def update_dr_stat_block(start_date, end_date, checked_default_types, checked_lo
         Input('loan-types', 'value')
     ])
 def update_count_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    plot_data = get_filtred_tbl(graph_count_data, start_date, end_date, checked_default_types, checked_loan_types)
-    return html.H5(str(plot_data.shape[0]), className="text-dark", )
+    count_stat = provider.GetCount(start_date, end_date, checked_default_types, checked_loan_types)
+    return html.H5(str(count_stat), className="text-dark", )
 
 
 @app.callback(
@@ -259,8 +256,8 @@ def update_count_stat_block(start_date, end_date, checked_default_types, checked
         Input('loan-types', 'value')
     ])
 def update_dc_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    plot_data = get_filtred_tbl(graph_count_data, start_date, end_date, checked_default_types, checked_loan_types)
-    return html.H5(str(plot_data['Дефолт'].sum()), className="text-dark", )
+    defaults_count = provider.GetDefaultsCount(start_date, end_date, checked_default_types, checked_loan_types)
+    return html.H5(str(defaults_count), className="text-dark", )
 
 
 @app.callback(
@@ -278,9 +275,7 @@ def update_count_graph(start_date, end_date, checkbox_flag, checked_default_type
         flag_def.append(1)
     if 'healthy' in checkbox_flag:
         flag_def.append(0)
-    #plot_data = graph_count_data[graph_count_data['Дефолт'].isin(flag_def)]
 
-    #plot_data = get_filtred_tbl(plot_data, start_date, end_date, checked_default_types, checked_loan_types)
     plot_data = provider.GetCountsData(start_date, end_date, checked_default_types, checked_loan_types, 'decompose' in checkbox_flag)
     res = []
     if 'decompose' in checkbox_flag:
@@ -294,6 +289,35 @@ def update_count_graph(start_date, end_date, checkbox_flag, checked_default_type
     else:
         return {"data": [{"x": plot_data.index, "y": plot_data.values, 'name': 'Сумма выбранных типов'}]}
 
+@app.callback(
+    Output('rating-graph', 'figure'),
+    [
+        Input('date-picker-range', 'start_date'),
+        Input('date-picker-range', 'end_date'),
+        Input("switches-inline-input-count-plot", "value"),
+        Input('default-types', 'value'),
+        Input('loan-types', 'value')
+    ])
+def update_rating_graph(start_date, end_date, checkbox_flag, checked_default_types, checked_loan_types):
+    flag_def = []
+    if 'default' in checkbox_flag:
+        flag_def.append(1)
+    if 'healthy' in checkbox_flag:
+        flag_def.append(0)
+
+    rating_data = provider.GetRatingData(start_date, end_date, checked_default_types, checked_loan_types, 'decompose' in checkbox_flag)
+    res = []
+
+    if 'decompose' in checkbox_flag:
+        for t in plot_data['Тип продукта'].unique():
+            res.append({
+                'x': plot_data.loc[plot_data['Тип продукта'] == t, 'Дата'],
+                'y': plot_data.loc[plot_data['Тип продукта'] == t, 'Количество'],
+                'name': list(loan_types.keys())[list(loan_types.values()).index(t)]
+            })
+        return {"data": res}
+    else:
+        return {"data": [go.Bar(x=rating_data.index, y=rating_data.values, name='Распределение рейтингов')]}
 
 @app.callback(
     Output('main-theme', 'style'),
@@ -337,7 +361,7 @@ def tab_content(active_tab):
             dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab'),
             dbc.Tab(label="Рейтинги", tab_id="tab-2", id='rating-tab'),
         ]
-
+#endregion
 
 if __name__ == "__main__":
     provider = DataProvider()
