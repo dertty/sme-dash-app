@@ -27,7 +27,6 @@ app.config.suppress_callback_exceptions = True
 
 
 #region Navigation Bar
-
 def build_navbar():
     navbar = dbc.NavbarSimple(
         children=[
@@ -48,98 +47,114 @@ def build_navbar():
 #endregion
 
 # region DR and count blocks
+def build_cards():
 
-def stat_card(value, desc, id):
-    return dbc.Card(dbc.CardBody([
-        html.Div(html.H5(value, className="text-dark", ), id=id),
-        html.P(desc, className="text-muted", )
-    ]), className='border border-light')
+    def stat_card(value, desc, id):
+        return dbc.Card(dbc.CardBody([
+            html.Div(html.H5(value, className="text-dark", ), id=id),
+            html.P(desc, className="text-muted", )
+        ]), className='border border-light')
 
+    cards = dbc.CardDeck(
+        [
+            stat_card(0, 'Доля дефолтов', id='dr-block'),
+            stat_card(0, 'Количество заявок', id='count-block'),
+            stat_card(0, 'Количество дефолтов', id='def-count-block'),
+        ], id='stat-blocks',
+    )
 
-cards = dbc.CardDeck(
-    [
-        stat_card(0, 'Доля дефолтов', id='dr-block'),
-        stat_card(0, 'Количество заявок', id='count-block'),
-        stat_card(0, 'Количество дефолтов', id='def-count-block'),
-    ], id='stat-blocks',
-)
+    return cards
 # endregion
 
 # region Plotting popularity graph
+def plot_counts():
+    count_plot_switches = dbc.FormGroup([
+        dbc.Checklist(
+            options=[
+                {"label": "Дефолты", "value": 'default'},
+                {"label": "Не дефолты", "value": 'healthy'},
+                {"label": "Разбить на продукты", "value": 'decompose'},
+            ],
+            value=['default', 'healthy'],
+            id="switches-inline-input-count-plot",
+            inline=True, switch=True,
+        )])
+    data = provider.GetCountsData()
 
-count_plot_switches = dbc.FormGroup([
-    dbc.Checklist(
-        options=[
-            {"label": "Дефолты", "value": 'default'},
-            {"label": "Не дефолты", "value": 'healthy'},
-            {"label": "Разбить на продукты", "value": 'decompose'},
-        ],
-        value=['default', 'healthy'],
-        id="switches-inline-input-count-plot",
-        inline=True, switch=True,
-    )])
-
-graph_count = dbc.Row([
-    dbc.Col([
-        dbc.Row([
-            dbc.Col(html.H3("Количество клиентов/договоров"), ),
-            dbc.Col(count_plot_switches, width='auto'), ], ),
-        dcc.Graph(figure={"data": [{"x": graph_count_data['Дата'], "y": graph_count_data['Количество'], }, ], },
-                  id='count-graph', ),
-    ], className='m-1', ), ])
-
+    graph_count = dbc.Row([
+        dbc.Col([
+            dbc.Row([
+                dbc.Col(html.H3("Количество клиентов/договоров"), ),
+                dbc.Col(count_plot_switches, width='auto'), ], ),
+            dcc.Graph(figure={"data": [{"x": data.index, "y": data.values, }, ], },
+                      id='count-graph', ),
+        ], className='m-1', ), ])
+    return graph_count
 # endregion
 
 # region Plotting rating graph
+def plot_ratings():
+    #Тубмлеры графика численности
+    rating_plot_switches = dbc.FormGroup([
+        dbc.Checklist(
+            options=[
+                {"label": "Дефолты", "value": 'default'},
+                {"label": "Не дефолты", "value": 'healthy'},
+                {"label": "Разбить на продукты", "value": 'decompose'},
+            ],
+            value=['default', 'healthy'],
+            id="switches-inline-input-count-plot",
+            inline=True, switch=True,
+        )])
 
-#Тубмлеры графика численности
-rating_plot_switches = dbc.FormGroup([
-    dbc.Checklist(
-        options=[
-            {"label": "Дефолты", "value": 'default'},
-            {"label": "Не дефолты", "value": 'healthy'},
-            {"label": "Разбить на продукты", "value": 'decompose'},
-        ],
-        value=['default', 'healthy'],
-        id="switches-inline-input-count-plot",
-        inline=True, switch=True,
-    )])
+    rating_graph_data = graph_count_data.groupby(['Рейтинг']).size()
 
-rating_graph_data = graph_count_data.groupby(['Рейтинг']).size()
 
-graph_rating = dbc.Row([
-    dbc.Col([
-        dbc.Row([
-            dbc.Col(html.H3("Рейтинги клиентов/договоров"), ),
-            dbc.Col(rating_plot_switches, width='auto'), ], ),
-        dcc.Graph(
-            figure=go.Figure(
-                data=[go.Bar(x=rating_graph_data.index.tolist(), y=rating_graph_data.tolist(), name='SF Zoo'), ],
-                layout=go.Layout(barmode='stack')), id='rating-graph', ),
-    ], className='m-1', ), ])
+    graph_rating = dbc.Row([
+        dbc.Col([
+            dbc.Row([
+                dbc.Col(html.H3("Рейтинги клиентов/договоров"), ),
+                dbc.Col(rating_plot_switches, width='auto'), ], ),
+            dcc.Graph(
+                figure=go.Figure(
+                    data=[go.Bar(x=rating_graph_data.index.tolist(), y=rating_graph_data.tolist(), name='SF Zoo'), ],
+                    layout=go.Layout(barmode='stack')), id='rating-graph', ),
+        ], className='m-1', ), ])
+
+    return graph_rating
 # endregion
-
-dark_theme_switch = daq.ToggleSwitch(
-    id='light-dark-theme-toggle',
-    label=['Light', 'Dark'],
-    style={'width': '100px', 'margin': 'auto'},
-    value=False,
-)
-
 
 def build_sidebar():
     """
     Создаёт боковую панель
     :return: Боковая панель
     """
+
+    start_dt, end_dt = provider.GetDatesFilterBounds()
+    dates_picker = {
+        'start_date': start_dt,
+        'end_date': end_dt,
+        'label': 'Интервал дат подписания договора:',
+        'html_for': "Минимальная и максимальная дата подписания договора для фильтрации выборки"
+    }
+
+
+
+    dark_theme_switch = daq.ToggleSwitch(
+        id='light-dark-theme-toggle',
+        label=['Light', 'Dark'],
+        style={'width': '100px', 'margin': 'auto'},
+        value=False,
+    )
+
     sidebar = dbc.Col(
         [
             html.Div(
                 [
                     dbc.Row(html.H5("Фильтрация портфеля")),
-                    dbc.Row(dbc.Label(signed_dt_filtration['label'], html_for=signed_dt_filtration['html_for'])),
-                    dbc.Row(dcc.DatePickerRange(id='date-picker-range', start_date=signed_dt_filtration['start_date'],
-                                                end_date=signed_dt_filtration['end_date'], clearable=True,
+                    dbc.Row(dbc.Label(dates_picker['label'], html_for=dates_picker['html_for'])),
+                    dbc.Row(dcc.DatePickerRange(id='date-picker-range', start_date=dates_picker['start_date'],
+                                                end_date=dates_picker['end_date'], clearable=True,
                                                 first_day_of_week=1, display_format='DD-MM-YYYY')),
                     dbc.Row(dbc.Label(defaults_types_dropdown['label'], html_for=defaults_types_dropdown['html_for'])),
                     dbc.Row(
@@ -169,7 +184,7 @@ def build_layout(app):
                             build_sidebar(),
                             dbc.Col(
                                 [
-                                    cards,
+                                    build_cards(),
                                     html.Br(),
                                     dbc.Card(
                                         [
@@ -195,7 +210,6 @@ def build_layout(app):
             ),
         ], fluid=True,
     )
-
 
 def get_filtred_tbl(tbl, start_date, end_date, checked_default_types, checked_loan_types):
     if checked_loan_types:
@@ -264,9 +278,10 @@ def update_count_graph(start_date, end_date, checkbox_flag, checked_default_type
         flag_def.append(1)
     if 'healthy' in checkbox_flag:
         flag_def.append(0)
-    plot_data = graph_count_data[graph_count_data['Дефолт'].isin(flag_def)]
+    #plot_data = graph_count_data[graph_count_data['Дефолт'].isin(flag_def)]
 
-    plot_data = get_filtred_tbl(plot_data, start_date, end_date, checked_default_types, checked_loan_types)
+    #plot_data = get_filtred_tbl(plot_data, start_date, end_date, checked_default_types, checked_loan_types)
+    plot_data = provider.GetCountsData(start_date, end_date, checked_default_types, checked_loan_types, 'decompose' in checkbox_flag)
     res = []
     if 'decompose' in checkbox_flag:
         for t in plot_data['Тип продукта'].unique():
@@ -277,7 +292,7 @@ def update_count_graph(start_date, end_date, checkbox_flag, checked_default_type
             })
         return {"data": res}
     else:
-        return {"data": [{"x": plot_data['Дата'], "y": plot_data['Количество'], 'name': 'Сумма выбранных типов'}]}
+        return {"data": [{"x": plot_data.index, "y": plot_data.values, 'name': 'Сумма выбранных типов'}]}
 
 
 @app.callback(
@@ -296,9 +311,9 @@ def change_bg(dark_theme):
     [Input("tabs", "active_tab")])
 def tab_content(active_tab):
     if active_tab == 'tab-1':
-        return graph_count
+        return plot_counts()
     elif active_tab == 'tab-2':
-        return graph_rating
+        return plot_ratings()
     else:
         return "Hello, where are we? I don't know {} tab.".format(active_tab)
 
@@ -326,5 +341,6 @@ def tab_content(active_tab):
 
 if __name__ == "__main__":
     provider = DataProvider()
+
     build_layout(app)
-    app.run_server(debug=False)
+    app.run_server(debug=True)
