@@ -25,25 +25,27 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 app.config.suppress_callback_exceptions = True
 
-########################################
-# Navigation Bar
-#######################################
-navbar = dbc.NavbarSimple(
-    children=[
-        dbc.NavItem(dbc.NavLink("Портфель", href="#")),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Выдачи", header=True)
-            ],
-            nav=True,
-            in_navbar=True,
-            label="More",
-        ),
-    ],
-    brand="Мониторинг кредитов ММБ", brand_href="#",
-    color="dark", dark=True, fluid=True,
-)
 
+#region Navigation Bar
+
+def build_navbar():
+    navbar = dbc.NavbarSimple(
+        children=[
+            dbc.NavItem(dbc.NavLink("Портфель", href="#")),
+            dbc.DropdownMenu(
+                children=[
+                    dbc.DropdownMenuItem("Выдачи", header=True)
+                ],
+                nav=True,
+                in_navbar=True,
+                label="More",
+            ),
+        ],
+        brand="Мониторинг кредитов ММБ", brand_href="#",
+        color="dark", dark=True, fluid=True,
+    )
+    return navbar
+#endregion
 
 # region DR and count blocks
 
@@ -124,66 +126,75 @@ dark_theme_switch = daq.ToggleSwitch(
     value=False,
 )
 
-sidebar = dbc.Col(
-    [
-        html.Div(
-            [
-                dbc.Row(html.H5("Фильтрация портфеля")),
-                dbc.Row(dbc.Label(signed_dt_filtration['label'], html_for=signed_dt_filtration['html_for'])),
-                dbc.Row(dcc.DatePickerRange(id='date-picker-range', start_date=signed_dt_filtration['start_date'],
-                                            end_date=signed_dt_filtration['end_date'], clearable=True,
-                                            first_day_of_week=1, display_format='DD-MM-YYYY')),
-                dbc.Row(dbc.Label(defaults_types_dropdown['label'], html_for=defaults_types_dropdown['html_for'])),
-                dbc.Row(
-                    dcc.Dropdown(options=defaults_types_dropdown['options'], value=defaults_types_dropdown['values'],
-                                 id='default-types', multi=True)),
-                dbc.Row(dbc.Label(loans_types_dropdown['label'], html_for=loans_types_dropdown['html_for'])),
-                dbc.Row(dcc.Dropdown(options=loans_types_dropdown['options'], value=loans_types_dropdown['values'],
-                                     id='loan-types', multi=True)),
-            ], className='sticky-top',
-        ),
-        html.Hr(),
-        dark_theme_switch,
-    ], width=3,
-)
 
-app.layout = dbc.Container(
-    [
-        navbar,
-        html.Div(
-            [
-                html.Br(),
-                dbc.Row(
-                    [
-                        sidebar,
-                        dbc.Col(
-                            [
-                                cards,
-                                html.Br(),
-                                dbc.Card(
-                                    [
-                                        dbc.CardHeader(
-                                            [
-                                                dbc.Tabs(
-                                                    [
-                                                        dbc.Tab(label="Количество", tab_id="tab-1",
-                                                                labelClassName="text-success"),
-                                                        dbc.Tab(label="Рейтинги", tab_id="tab-2", ),
-                                                    ], id="tabs", active_tab="tab-1",
-                                                ),
-                                            ]
-                                        ),
-                                        dbc.CardBody(html.P(id="card-content", className="card-text")),
-                                    ]
-                                ),
-                            ], width=9,
-                        )
-                    ], className='m-1',
-                ),
-            ], id='main-theme',
-        ),
-    ], fluid=True,
-)
+def build_sidebar():
+    """
+    Создаёт боковую панель
+    :return: Боковая панель
+    """
+    sidebar = dbc.Col(
+        [
+            html.Div(
+                [
+                    dbc.Row(html.H5("Фильтрация портфеля")),
+                    dbc.Row(dbc.Label(signed_dt_filtration['label'], html_for=signed_dt_filtration['html_for'])),
+                    dbc.Row(dcc.DatePickerRange(id='date-picker-range', start_date=signed_dt_filtration['start_date'],
+                                                end_date=signed_dt_filtration['end_date'], clearable=True,
+                                                first_day_of_week=1, display_format='DD-MM-YYYY')),
+                    dbc.Row(dbc.Label(defaults_types_dropdown['label'], html_for=defaults_types_dropdown['html_for'])),
+                    dbc.Row(
+                        dcc.Dropdown(options=defaults_types_dropdown['options'],
+                                     value=defaults_types_dropdown['values'],
+                                     id='default-types', multi=True)),
+                    dbc.Row(dbc.Label(loans_types_dropdown['label'], html_for=loans_types_dropdown['html_for'])),
+                    dbc.Row(dcc.Dropdown(options=loans_types_dropdown['options'], value=loans_types_dropdown['values'],
+                                         id='loan-types', multi=True)),
+                ], className='sticky-top',
+            ),
+            html.Hr(),
+            dark_theme_switch,
+        ], width=3,
+    )
+    return sidebar
+
+def build_layout(app):
+    app.layout = dbc.Container(
+        [
+            build_navbar(),
+            html.Div(
+                [
+                    html.Br(),
+                    dbc.Row(
+                        [
+                            build_sidebar(),
+                            dbc.Col(
+                                [
+                                    cards,
+                                    html.Br(),
+                                    dbc.Card(
+                                        [
+                                            dbc.CardHeader(
+                                                [
+                                                    dbc.Tabs(
+                                                        [
+                                                            dbc.Tab(label="Количество", tab_id="tab-1",
+                                                                    labelClassName="text-success"),
+                                                            dbc.Tab(label="Рейтинги", tab_id="tab-2", ),
+                                                        ], id="tabs", active_tab="tab-1",
+                                                    ),
+                                                ]
+                                            ),
+                                            dbc.CardBody(html.P(id="card-content", className="card-text")),
+                                        ]
+                                    ),
+                                ], width=9,
+                            )
+                        ], className='m-1',
+                    ),
+                ], id='main-theme',
+            ),
+        ], fluid=True,
+    )
 
 
 def get_filtred_tbl(tbl, start_date, end_date, checked_default_types, checked_loan_types):
@@ -315,4 +326,5 @@ def tab_content(active_tab):
 
 if __name__ == "__main__":
     provider = DataProvider()
+    build_layout(app)
     app.run_server(debug=False)
