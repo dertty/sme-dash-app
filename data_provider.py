@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime as dt
 
+#TODO: Сделать адекатнео хеширование во всех GET запросах на график, как сейчас - неприкольно
 
 class DataProvider:
     def __init__(self):
@@ -59,7 +60,7 @@ class DataProvider:
         default_count = data['cur_default'].sum()
         return default_count
 
-    def GetDR(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
+    def GetEventRateStat(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
         """
         Возвращает DR подходящих по критериям наблюдений
         :return: DR подходящих по критериям наблюдений
@@ -68,7 +69,7 @@ class DataProvider:
         dr = data['default_12m'].sum() / data.shape[0]
         return dr
 
-    def GetCount(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
+    def GetCountStat(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
         """
         Возвращает число подходящих по критериям наблюдений
         :return: Число подходящих по критериям наблюдений
@@ -76,8 +77,7 @@ class DataProvider:
         data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
         return data.shape[0]
 
-    def GetCountsData(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,
-                      product_decompose=False):
+    def GetCountsData(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,product_decompose=False):
         data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
 
         if product_decompose:
@@ -87,9 +87,20 @@ class DataProvider:
             result = data.groupby(by='report_dt').size()
         return result
 
-    def GetRatingData(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,
-                      product_decompose=False):
+    def GetRatingData(self, default_state=None, start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None):
         data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
 
         result = data.groupby(by='rating').size()
+        return result
+
+    def GetDRData(self, default_state=[0], start_date=None, end_date=None, checked_default_types=None, checked_loan_types=None,product_decompose=False):
+        data = self._getFilteredData(default_state, start_date, end_date, checked_default_types, checked_loan_types)
+        result = data.groupby(by='report_dt').agg({'default_12m':'mean'})
+
+        if product_decompose:
+            result = data.groupby(by=['report_dt', 'credit_type']).agg({'default_12m':'mean'}).reset_index()
+            result.columns = ['report_dt', 'credit_type', 'dr']
+        else:
+            result = data.groupby(by='report_dt')['default_12m'].mean()
+
         return result

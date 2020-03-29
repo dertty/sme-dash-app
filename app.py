@@ -49,7 +49,7 @@ def build_cards():
 
     cards = dbc.CardDeck(
         [
-            stat_card(0, 'Доля дефолтов', id='dr-block'),
+            stat_card(0, 'Доля дефолтов', id='er-block'),
             stat_card(0, 'Количество заявок', id='count-block'),
             stat_card(0, 'Количество дефолтов', id='def-count-block'),
         ], id='stat-blocks',
@@ -86,6 +86,19 @@ def plot_ratings():
 
     return graph_rating
 # endregion
+
+# region Plotting DR graph
+def plot_dr():
+    dr_data = provider.GetDRData()
+    dr_graph = dbc.Row([
+        dbc.Col([
+            dbc.Row(dbc.Col(html.H3("Default rate"))),
+            dcc.Graph(figure={"data": [{"x": dr_data.index, "y": dr_data.values, }, ], },
+                      id='dr-graph', ),
+        ], className='m-1', ), ])
+    return dr_graph
+# endregion
+
 
 def build_sidebar():
     """
@@ -178,6 +191,7 @@ def build_layout(app):
                                                             dbc.Tab(label="Количество", tab_id="tab-1",
                                                                     labelClassName="text-success"),
                                                             dbc.Tab(label="Рейтинги", tab_id="tab-2", ),
+                                                            dbc.Tab(label="DR", tab_id="tab-3", ),
                                                         ], id="tabs", active_tab="tab-1",
                                                     ),
                                                 ]
@@ -197,7 +211,7 @@ def build_layout(app):
 
 #region Callbacks
 @app.callback(
-    Output('dr-block', 'children'),
+    Output('er-block', 'children'),
     [
         Input('date-picker-range', 'start_date'),
         Input('date-picker-range', 'end_date'),
@@ -205,7 +219,7 @@ def build_layout(app):
         Input('loan-types', 'value')
     ])
 def update_dr_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    dr = provider.GetDR(start_date = start_date, end_date = end_date, checked_default_types=checked_default_types, checked_loan_types=checked_loan_types)
+    dr = provider.GetEventRateStat(start_date = start_date, end_date = end_date, checked_default_types=checked_default_types, checked_loan_types=checked_loan_types)
     return html.H5('{}%'.format(round(dr * 100, 2)), className="text-dark", )
 
 
@@ -218,7 +232,7 @@ def update_dr_stat_block(start_date, end_date, checked_default_types, checked_lo
         Input('loan-types', 'value')
     ])
 def update_count_stat_block(start_date, end_date, checked_default_types, checked_loan_types):
-    count_stat = provider.GetCount(start_date = start_date, end_date=end_date, checked_default_types=checked_default_types, checked_loan_types=checked_loan_types)
+    count_stat = provider.GetCountStat(start_date = start_date, end_date=end_date, checked_default_types=checked_default_types, checked_loan_types=checked_loan_types)
     return html.H5(str(count_stat), className="text-dark", )
 
 
@@ -289,6 +303,32 @@ def update_rating_graph(start_date, end_date, checkbox_flag, checked_default_typ
     return {"data": [go.Bar(x=rating_data.index, y=rating_data.values, name='Распределение рейтингов')]}
 
 @app.callback(
+    Output('dr-graph', 'figure'),
+    [
+        Input('date-picker-range', 'start_date'),
+        Input('date-picker-range', 'end_date'),
+        Input("switches-inline-input-count-plot", "value"),
+        Input('default-types', 'value'),
+        Input('loan-types', 'value')
+    ])
+def update_dr_graph(start_date, end_date, checkbox_flag, checked_default_types, checked_loan_types):
+    plot_data = provider.GetDRData(start_date = start_date, end_date = end_date,
+                                       checked_default_types = checked_default_types, checked_loan_types = checked_loan_types,
+                                       product_decompose='decompose' in checkbox_flag)
+    res = []
+    if 'decompose' in checkbox_flag:
+        for t in plot_data['credit_type'].unique():
+            res.append({
+                'x': plot_data.loc[plot_data['credit_type'] == t, 'report_dt'],
+                'y': plot_data.loc[plot_data['credit_type'] == t, 'dr'],
+                'name': t
+            })
+        return {"data": res}
+    else:
+        return {"data": [{"x": plot_data.index, "y": plot_data.values, 'name': 'Сумма выбранных типов'}]}
+
+
+@app.callback(
     Output('main-theme', 'style'),
     [Input('light-dark-theme-toggle', 'value')]
 )
@@ -307,6 +347,8 @@ def tab_content(active_tab):
         return plot_counts()
     elif active_tab == 'tab-2':
         return plot_ratings()
+    elif active_tab == 'tab-3':
+        return plot_dr()
     else:
         return "Hello, where are we? I don't know {} tab.".format(active_tab)
 
@@ -319,16 +361,25 @@ def tab_content(active_tab):
         return [
             dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab', labelClassName="text-success"),
             dbc.Tab(label="Рейтинги", tab_id="tab-2", id='rating-tab'),
+            dbc.Tab(label="DR", tab_id="tab-3", id='dr-tab'),
         ]
     elif active_tab == 'tab-2':
         return [
             dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab', ),
             dbc.Tab(label="Рейтинги", tab_id="tab-2", id='rating-tab', labelClassName="text-success"),
+            dbc.Tab(label="DR", tab_id="tab-3", id='dr-tab'),
+        ]
+    elif active_tab == 'tab-3':
+        return [
+            dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab', ),
+            dbc.Tab(label="Рейтинги", tab_id="tab-2", id='rating-tab'),
+            dbc.Tab(label="DR", tab_id="tab-3", id='dr-tab', labelClassName="text-success"),
         ]
     else:
         return [
             dbc.Tab(label="Количество", tab_id="tab-1", id='count-tab'),
             dbc.Tab(label="Рейтинги", tab_id="tab-2", id='rating-tab'),
+            dbc.Tab(label="DR", tab_id="tab-3", id='dr-tab'),
         ]
 #endregion
 
