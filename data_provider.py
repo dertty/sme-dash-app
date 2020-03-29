@@ -6,7 +6,7 @@ from datetime import datetime as dt
 
 class DataProvider:
     def __init__(self):
-        self.portfolio_data_ = pd.read_excel('data/data.xlsx')
+        self.portfolio_data_ = pd.read_csv('data/data.csv')
         self.product_types_ = self.portfolio_data_['credit_type'].unique()
         self.default_reasons_ = self.portfolio_data_['default_reason'].dropna().unique()
 
@@ -17,7 +17,7 @@ class DataProvider:
         if checked_loan_types:
             data = data[data['credit_type'].isin(checked_loan_types)]
         if checked_default_types:
-            data = data[data['default_reason'].isin(checked_default_types + [None, ])]
+            data = data[data['default_reason'].isin(checked_default_types + [np.nan, ])]
         if start_date:
             data = data[data['report_dt'] >= start_date]
         if end_date:
